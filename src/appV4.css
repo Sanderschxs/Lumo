@@ -1,0 +1,74 @@
+.lumo-rich-source {
+  display: none !important;
+}
+
+.lumo-rich-editor {
+  min-height: 28px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  outline: none;
+  cursor: text;
+}
+
+.lumo-rich-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted, #8b8b8b);
+  pointer-events: none;
+}
+
+.lumo-rich-editor strong {
+  font-weight: 750;
+}
+
+.lumo-rich-editor em {
+  font-style: italic;
+}
+
+.lumo-rich-editor s {
+  opacity: 0.72;
+}
+
+.lumo-rich-editor code {
+  padding: 0.12em 0.36em;
+  border-radius: 5px;
+  background: rgba(127, 127, 127, 0.16);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.lumo-rich-editor a {
+  color: #f0b83f;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.block-gutter {
+  gap: 2px;
+}
+
+.lumo-block-delete {
+  opacity: 0;
+  color: var(--muted, #8b8b8b) !important;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.block-row:hover .lumo-block-delete,
+.block-row:focus-within .lumo-block-delete {
+  opacity: 1;
+}
+
+.lumo-block-delete:hover {
+  color: #ff6b6b !important;
+  background: rgba(255, 85, 85, 0.12) !important;
+}
+
+.block-row--todo .lumo-rich-editor.block-input--checked {
+  text-decoration: line-through;
+  opacity: 0.62;
+}
+
+@media (pointer: coarse) {
+  .lumo-block-delete {
+    opacity: 1;
+  }
+}
