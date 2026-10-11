@@ -1,0 +1,197 @@
+.lumo-slash-menu {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(330px, calc(100vw - 32px));
+  max-height: 470px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--menu-bg) 96%, black 4%);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.lumo-slash-search {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  gap: 3px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lumo-slash-search-mark {
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.lumo-slash-query { color: inherit; }
+.lumo-slash-placeholder { opacity: 0.72; }
+
+.lumo-slash-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+}
+
+.lumo-slash-group + .lumo-slash-group {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid color-mix(in srgb, var(--panel-border) 75%, transparent);
+}
+
+.lumo-slash-group-title {
+  padding: 7px 9px 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.lumo-slash-item {
+  width: 100%;
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lumo-slash-item:hover,
+.lumo-slash-item--selected {
+  background: var(--hover);
+}
+
+.lumo-slash-item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.lumo-slash-icon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--panel-border) 82%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--input-bg) 75%, transparent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lumo-slash-copy {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 1px;
+}
+
+.lumo-slash-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lumo-slash-copy strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lumo-slash-copy > small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lumo-slash-badge {
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.lumo-color-swatch {
+  width: 14px;
+  height: 14px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 4px;
+}
+
+.lumo-slash-empty {
+  padding: 18px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.lumo-slash-footer {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 11px;
+  border: 0;
+  border-top: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--menu-bg) 94%, var(--hover));
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.lumo-slash-footer:hover { color: inherit; }
+
+.block-tone-text-gray .block-input { color: #9b9b9b; }
+.block-tone-text-brown .block-input { color: #9a6f52; }
+.block-tone-text-orange .block-input { color: #d47a25; }
+.block-tone-text-yellow .block-input { color: #c79a27; }
+.block-tone-text-green .block-input { color: #4d9b65; }
+.block-tone-text-blue .block-input { color: #4b82d0; }
+.block-tone-text-purple .block-input { color: #8a62c8; }
+.block-tone-text-pink .block-input { color: #c85f91; }
+.block-tone-text-red .block-input { color: #d45454; }
+
+.block-tone-bg-gray { background: color-mix(in srgb, #8c8c8c 13%, transparent) !important; }
+.block-tone-bg-brown { background: color-mix(in srgb, #9a6f52 16%, transparent) !important; }
+.block-tone-bg-orange { background: color-mix(in srgb, #d47a25 16%, transparent) !important; }
+.block-tone-bg-yellow { background: color-mix(in srgb, #d8ae36 17%, transparent) !important; }
+.block-tone-bg-green { background: color-mix(in srgb, #4d9b65 16%, transparent) !important; }
+.block-tone-bg-blue { background: color-mix(in srgb, #4b82d0 16%, transparent) !important; }
+.block-tone-bg-purple { background: color-mix(in srgb, #8a62c8 16%, transparent) !important; }
+.block-tone-bg-pink { background: color-mix(in srgb, #c85f91 16%, transparent) !important; }
+.block-tone-bg-red { background: color-mix(in srgb, #d45454 16%, transparent) !important; }
+
+@media (max-width: 700px) {
+  .lumo-slash-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    top: auto;
+    width: auto;
+    max-height: 58vh;
+  }
+}
