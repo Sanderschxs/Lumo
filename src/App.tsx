@@ -6,6 +6,11 @@ import {
   type DragEvent,
   type KeyboardEvent,
 } from 'react'
+import DatabaseBlock, {
+  makeDatabaseData,
+  type DatabaseData,
+  type DatabaseRow,
+} from './DatabaseBlock'
 
 type BlockType =
   | 'text'
@@ -17,12 +22,14 @@ type BlockType =
   | 'todo'
   | 'quote'
   | 'code'
+  | 'database'
 
 type Block = {
   id: string
   type: BlockType
   text: string
   checked?: boolean
+  database?: DatabaseData
 }
 
 type Page = {
@@ -59,6 +66,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { type: 'todo', label: 'To-do', description: 'Track a task with a checkbox', icon: '☑', keywords: 'todo task checkbox checklist' },
   { type: 'quote', label: 'Quote', description: 'Capture a quote or callout', icon: '❝', keywords: 'quote blockquote' },
   { type: 'code', label: 'Code', description: 'Monospace code block', icon: '</>', keywords: 'code snippet programming' },
+  { type: 'database', label: 'Database', description: 'Table, board and calendar views', icon: '▦', keywords: 'database table board kanban calendar properties' },
 ]
 
 function makeBlock(type: BlockType = 'text', text = ''): Block {
@@ -67,6 +75,7 @@ function makeBlock(type: BlockType = 'text', text = ''): Block {
     type,
     text,
     checked: type === 'todo' ? false : undefined,
+    database: type === 'database' ? makeDatabaseData() : undefined,
   }
 }
 
@@ -83,14 +92,44 @@ function makePage(title = 'Untitled', parentId: string | null = null): Page {
   }
 }
 
+function migrateDatabase(input?: Partial<DatabaseData>): DatabaseData {
+  const fallback = makeDatabaseData()
+  if (!input) return fallback
+
+  const rows = Array.isArray(input.rows)
+    ? input.rows.map((row: Partial<DatabaseRow>) => ({
+        id: row.id || crypto.randomUUID(),
+        name: row.name || '',
+        status:
+          row.status === 'In progress' || row.status === 'Done'
+            ? row.status
+            : 'Not started',
+        tags: Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+        date: typeof row.date === 'string' ? row.date : '',
+      }))
+    : fallback.rows
+
+  return {
+    title: input.title || 'Untitled database',
+    view: input.view === 'board' || input.view === 'calendar' ? input.view : 'table',
+    rows,
+  }
+}
+
 function migrateBlocks(page: Partial<Page>): Block[] {
   if (Array.isArray(page.blocks) && page.blocks.length > 0) {
-    return page.blocks.map((block) => ({
-      id: block.id || crypto.randomUUID(),
-      type: block.type || 'text',
-      text: block.text || '',
-      checked: block.type === 'todo' ? Boolean(block.checked) : undefined,
-    }))
+    return page.blocks.map((block) => {
+      const type: BlockType = SLASH_COMMANDS.some((command) => command.type === block.type)
+        ? block.type
+        : 'text'
+      return {
+        id: block.id || crypto.randomUUID(),
+        type,
+        text: block.text || '',
+        checked: type === 'todo' ? Boolean(block.checked) : undefined,
+        database: type === 'database' ? migrateDatabase(block.database) : undefined,
+      }
+    })
   }
 
   if (typeof page.content === 'string' && page.content.length > 0) {
@@ -130,6 +169,14 @@ function loadTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+function databaseToMarkdown(database: DatabaseData) {
+  const header = `### ${database.title || 'Database'}\n\n| Name | Status | Tags | Date |\n| --- | --- | --- | --- |`
+  const rows = database.rows.map((row) =>
+    `| ${row.name.replace(/\|/g, '\\|')} | ${row.status} | ${row.tags.join(', ').replace(/\|/g, '\\|')} | ${row.date} |`,
+  )
+  return [header, ...rows].join('\n')
+}
+
 function blockToMarkdown(block: Block): string {
   switch (block.type) {
     case 'heading1': return `# ${block.text}`
@@ -140,6 +187,7 @@ function blockToMarkdown(block: Block): string {
     case 'todo': return `- [${block.checked ? 'x' : ' '}] ${block.text}`
     case 'quote': return `> ${block.text}`
     case 'code': return `\`\`\`\n${block.text}\n\`\`\``
+    case 'database': return databaseToMarkdown(block.database || makeDatabaseData())
     default: return block.text
   }
 }
@@ -215,7 +263,13 @@ export default function App() {
     const needle = query.trim().toLowerCase()
     if (!needle) return pages
     return pages.filter((page) => {
-      const blockText = page.blocks.map((block) => block.text).join(' ')
+      const blockText = page.blocks.map((block) => {
+        if (block.type === 'database') {
+          const db = block.database
+          return `${db?.title ?? ''} ${db?.rows.map((row) => `${row.name} ${row.status} ${row.tags.join(' ')}`).join(' ') ?? ''}`
+        }
+        return block.text
+      }).join(' ')
       return `${page.title} ${blockText}`.toLowerCase().includes(needle)
     })
   }, [pages, query])
@@ -311,7 +365,7 @@ export default function App() {
       if (index === -1) return [...blocks, next]
       return [...blocks.slice(0, index + 1), next, ...blocks.slice(index + 1)]
     })
-    focusBlock(next.id)
+    if (type !== 'database') focusBlock(next.id)
   }
 
   function deleteBlock(blockId: string, fallbackIndex: number) {
@@ -319,19 +373,20 @@ export default function App() {
     const previous = activePage.blocks[Math.max(0, fallbackIndex - 1)]
     changeBlocks((blocks) => blocks.filter((block) => block.id !== blockId))
     setSlashMenu(null)
-    if (previous) focusBlock(previous.id)
+    if (previous && previous.type !== 'database') focusBlock(previous.id)
   }
 
   function selectCommand(command: SlashCommand) {
     if (!slashMenu) return
-    updateBlock(slashMenu.blockId, {
+    const blockId = slashMenu.blockId
+    updateBlock(blockId, {
       type: command.type,
       text: '',
       checked: command.type === 'todo' ? false : undefined,
+      database: command.type === 'database' ? makeDatabaseData() : undefined,
     })
-    const blockId = slashMenu.blockId
     setSlashMenu(null)
-    focusBlock(blockId)
+    if (command.type !== 'database') focusBlock(blockId)
   }
 
   function handleBlockKeyDown(
@@ -355,7 +410,7 @@ export default function App() {
     if (event.key === 'Enter' && !event.shiftKey && block.type !== 'code') {
       event.preventDefault()
       if (block.text.length === 0 && block.type !== 'text') {
-        updateBlock(block.id, { type: 'text', checked: undefined })
+        updateBlock(block.id, { type: 'text', checked: undefined, database: undefined })
         return
       }
 
@@ -370,7 +425,7 @@ export default function App() {
     if (event.key === 'Backspace' && block.text.length === 0) {
       if (block.type !== 'text') {
         event.preventDefault()
-        updateBlock(block.id, { type: 'text', checked: undefined })
+        updateBlock(block.id, { type: 'text', checked: undefined, database: undefined })
         return
       }
       if (activePage && activePage.blocks.length > 1) {
@@ -505,6 +560,7 @@ export default function App() {
   const showNewPageCommand = !paletteNeedle || 'new page create'.includes(paletteNeedle)
   const showThemeCommand = !paletteNeedle || 'theme dark light appearance'.includes(paletteNeedle)
   const showExportCommand = !paletteNeedle || 'export markdown md'.includes(paletteNeedle)
+  const showDatabaseCommand = !paletteNeedle || 'database table board calendar kanban'.includes(paletteNeedle)
 
   return (
     <div className="app-shell">
@@ -590,70 +646,83 @@ export default function App() {
                 <div
                   key={block.id}
                   className={`block-row block-row--${block.type} ${draggedBlockId === block.id ? 'block-row--dragging' : ''}`}
-                  draggable
-                  onDragStart={() => setDraggedBlockId(block.id)}
+                  draggable={block.type !== 'database'}
+                  onDragStart={() => block.type !== 'database' && setDraggedBlockId(block.id)}
                   onDragEnd={() => setDraggedBlockId(null)}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => handleDrop(event, block.id)}
                 >
                   <div className="block-gutter" aria-hidden="true">
                     <button className="block-add" onClick={() => insertBlockAfter(block.id)} tabIndex={-1} title="Add block">+</button>
-                    <span className="drag-handle" title="Drag to move">⋮⋮</span>
+                    {block.type === 'database' ? (
+                      <button className="block-add" onClick={() => deleteBlock(block.id, index)} tabIndex={-1} title="Delete database">×</button>
+                    ) : (
+                      <span className="drag-handle" title="Drag to move">⋮⋮</span>
+                    )}
                   </div>
 
                   <div className="block-main">
-                    {block.type === 'bullet' && <span className="block-prefix">•</span>}
-                    {block.type === 'numbered' && <span className="block-prefix">{index + 1}.</span>}
-                    {block.type === 'todo' && (
-                      <input
-                        className="todo-checkbox"
-                        type="checkbox"
-                        checked={Boolean(block.checked)}
-                        onChange={(event) => updateBlock(block.id, { checked: event.target.checked })}
-                        aria-label="Toggle to-do"
+                    {block.type === 'database' ? (
+                      <DatabaseBlock
+                        data={block.database || makeDatabaseData()}
+                        onChange={(database) => updateBlock(block.id, { database })}
                       />
-                    )}
-
-                    <textarea
-                      ref={(element) => {
-                        blockRefs.current[block.id] = element
-                        resizeTextarea(element)
-                      }}
-                      className={`block-input block-input--${block.type} ${block.checked ? 'block-input--checked' : ''}`}
-                      value={block.text}
-                      rows={1}
-                      onChange={(event) => {
-                        handleBlockChange(block.id, event.target.value)
-                        resizeTextarea(event.currentTarget)
-                      }}
-                      onKeyDown={(event) => handleBlockKeyDown(event, block, index)}
-                      onFocus={() => {
-                        if (block.text.startsWith('/')) setSlashMenu({ blockId: block.id, query: block.text.slice(1) })
-                      }}
-                      placeholder={blockPlaceholder(block.type)}
-                      spellCheck={block.type !== 'code'}
-                    />
-
-                    {slashMenu?.blockId === block.id && (
-                      <div className="slash-menu">
-                        <div className="slash-menu-title">Blocks</div>
-                        {visibleCommands.length > 0 ? (
-                          visibleCommands.map((command) => (
-                            <button
-                              key={command.type}
-                              className="slash-command"
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => selectCommand(command)}
-                            >
-                              <span className="slash-command-icon">{command.icon}</span>
-                              <span><strong>{command.label}</strong><small>{command.description}</small></span>
-                            </button>
-                          ))
-                        ) : (
-                          <div className="slash-empty">No matching blocks.</div>
+                    ) : (
+                      <>
+                        {block.type === 'bullet' && <span className="block-prefix">•</span>}
+                        {block.type === 'numbered' && <span className="block-prefix">{index + 1}.</span>}
+                        {block.type === 'todo' && (
+                          <input
+                            className="todo-checkbox"
+                            type="checkbox"
+                            checked={Boolean(block.checked)}
+                            onChange={(event) => updateBlock(block.id, { checked: event.target.checked })}
+                            aria-label="Toggle to-do"
+                          />
                         )}
-                        <div className="slash-menu-hint">Enter to select · Esc to close</div>
-                      </div>
+
+                        <textarea
+                          ref={(element) => {
+                            blockRefs.current[block.id] = element
+                            resizeTextarea(element)
+                          }}
+                          className={`block-input block-input--${block.type} ${block.checked ? 'block-input--checked' : ''}`}
+                          value={block.text}
+                          rows={1}
+                          onChange={(event) => {
+                            handleBlockChange(block.id, event.target.value)
+                            resizeTextarea(event.currentTarget)
+                          }}
+                          onKeyDown={(event) => handleBlockKeyDown(event, block, index)}
+                          onFocus={() => {
+                            if (block.text.startsWith('/')) setSlashMenu({ blockId: block.id, query: block.text.slice(1) })
+                          }}
+                          placeholder={blockPlaceholder(block.type)}
+                          spellCheck={block.type !== 'code'}
+                        />
+
+                        {slashMenu?.blockId === block.id && (
+                          <div className="slash-menu">
+                            <div className="slash-menu-title">Blocks</div>
+                            {visibleCommands.length > 0 ? (
+                              visibleCommands.map((command) => (
+                                <button
+                                  key={command.type}
+                                  className="slash-command"
+                                  onMouseDown={(event) => event.preventDefault()}
+                                  onClick={() => selectCommand(command)}
+                                >
+                                  <span className="slash-command-icon">{command.icon}</span>
+                                  <span><strong>{command.label}</strong><small>{command.description}</small></span>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="slash-empty">No matching blocks.</div>
+                            )}
+                            <div className="slash-menu-hint">Enter to select · Esc to close</div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -680,8 +749,9 @@ export default function App() {
             </div>
 
             <div className="palette-results">
-              {(showNewPageCommand || showThemeCommand || showExportCommand) && <div className="palette-section-title">Commands</div>}
+              {(showNewPageCommand || showThemeCommand || showExportCommand || showDatabaseCommand) && <div className="palette-section-title">Commands</div>}
               {showNewPageCommand && <button onClick={() => addPage(null)}><span className="palette-icon">＋</span><span><strong>New page</strong><small>Create a top-level page</small></span></button>}
+              {showDatabaseCommand && activePage && <button onClick={() => { insertBlockAfter(activePage.blocks.at(-1)?.id ?? '', 'database'); setPaletteOpen(false) }}><span className="palette-icon">▦</span><span><strong>New database</strong><small>Add table, board and calendar views</small></span></button>}
               {showThemeCommand && <button onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setPaletteOpen(false) }}><span className="palette-icon">◐</span><span><strong>Toggle theme</strong><small>Switch light and dark mode</small></span></button>}
               {showExportCommand && <button onClick={() => { exportMarkdown(); setPaletteOpen(false) }}><span className="palette-icon">⇩</span><span><strong>Export Markdown</strong><small>Download the current page</small></span></button>}
 
@@ -693,7 +763,7 @@ export default function App() {
                 </button>
               ))}
 
-              {!showNewPageCommand && !showThemeCommand && !showExportCommand && palettePages.length === 0 && (
+              {!showNewPageCommand && !showThemeCommand && !showExportCommand && !showDatabaseCommand && palettePages.length === 0 && (
                 <div className="palette-empty">Nothing found.</div>
               )}
             </div>
