@@ -1,35 +1,172 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+} from 'react'
+
+type BlockType =
+  | 'text'
+  | 'heading1'
+  | 'heading2'
+  | 'heading3'
+  | 'bullet'
+  | 'numbered'
+  | 'todo'
+  | 'quote'
+  | 'code'
+
+type Block = {
+  id: string
+  type: BlockType
+  text: string
+  checked?: boolean
+}
 
 type Page = {
   id: string
   title: string
-  content: string
+  blocks: Block[]
+  content?: string
   createdAt: number
   updatedAt: number
 }
 
 type Theme = 'light' | 'dark'
 
+type SlashCommand = {
+  type: BlockType
+  label: string
+  description: string
+  icon: string
+  keywords: string
+}
+
 const STORAGE_KEY = 'lumo.pages.v1'
 const THEME_KEY = 'lumo.theme'
+
+const SLASH_COMMANDS: SlashCommand[] = [
+  {
+    type: 'text',
+    label: 'Text',
+    description: 'Plain text block',
+    icon: 'T',
+    keywords: 'paragraph normal text',
+  },
+  {
+    type: 'heading1',
+    label: 'Heading 1',
+    description: 'Large section heading',
+    icon: 'H1',
+    keywords: 'title heading h1',
+  },
+  {
+    type: 'heading2',
+    label: 'Heading 2',
+    description: 'Medium section heading',
+    icon: 'H2',
+    keywords: 'subtitle heading h2',
+  },
+  {
+    type: 'heading3',
+    label: 'Heading 3',
+    description: 'Small section heading',
+    icon: 'H3',
+    keywords: 'heading h3',
+  },
+  {
+    type: 'bullet',
+    label: 'Bulleted list',
+    description: 'Create a simple list',
+    icon: '•',
+    keywords: 'bullet unordered list',
+  },
+  {
+    type: 'numbered',
+    label: 'Numbered list',
+    description: 'Create a numbered list',
+    icon: '1.',
+    keywords: 'ordered numbered list',
+  },
+  {
+    type: 'todo',
+    label: 'To-do',
+    description: 'Track a task with a checkbox',
+    icon: '☑',
+    keywords: 'todo task checkbox checklist',
+  },
+  {
+    type: 'quote',
+    label: 'Quote',
+    description: 'Capture a quote or callout',
+    icon: '❝',
+    keywords: 'quote blockquote',
+  },
+  {
+    type: 'code',
+    label: 'Code',
+    description: 'Monospace code block',
+    icon: '</>',
+    keywords: 'code snippet programming',
+  },
+]
+
+function makeBlock(type: BlockType = 'text', text = ''): Block {
+  return {
+    id: crypto.randomUUID(),
+    type,
+    text,
+    checked: type === 'todo' ? false : undefined,
+  }
+}
 
 function makePage(title = 'Untitled'): Page {
   const now = Date.now()
   return {
     id: crypto.randomUUID(),
     title,
-    content: '',
+    blocks: [makeBlock()],
     createdAt: now,
     updatedAt: now,
   }
+}
+
+function migrateBlocks(page: Partial<Page>): Block[] {
+  if (Array.isArray(page.blocks) && page.blocks.length > 0) {
+    return page.blocks.map((block) => ({
+      id: block.id || crypto.randomUUID(),
+      type: block.type || 'text',
+      text: block.text || '',
+      checked: block.type === 'todo' ? Boolean(block.checked) : undefined,
+    }))
+  }
+
+  if (typeof page.content === 'string' && page.content.length > 0) {
+    return page.content.split('\n').map((line) => makeBlock('text', line))
+  }
+
+  return [makeBlock()]
 }
 
 function loadPages(): Page[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return [makePage('Welcome to Lumo')]
-    const parsed = JSON.parse(raw) as Page[]
-    return parsed.length > 0 ? parsed : [makePage('Welcome to Lumo')]
+
+    const parsed = JSON.parse(raw) as Partial<Page>[]
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [makePage('Welcome to Lumo')]
+    }
+
+    return parsed.map((page) => ({
+      id: page.id || crypto.randomUUID(),
+      title: page.title || 'Untitled',
+      blocks: migrateBlocks(page),
+      createdAt: page.createdAt || Date.now(),
+      updatedAt: page.updatedAt || Date.now(),
+    }))
   } catch {
     return [makePage('Welcome to Lumo')]
   }
@@ -41,12 +178,55 @@ function loadTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+function blockToMarkdown(block: Block): string {
+  switch (block.type) {
+    case 'heading1':
+      return `# ${block.text}`
+    case 'heading2':
+      return `## ${block.text}`
+    case 'heading3':
+      return `### ${block.text}`
+    case 'bullet':
+      return `- ${block.text}`
+    case 'numbered':
+      return `1. ${block.text}`
+    case 'todo':
+      return `- [${block.checked ? 'x' : ' '}] ${block.text}`
+    case 'quote':
+      return `> ${block.text}`
+    case 'code':
+      return `\`\`\`\n${block.text}\n\`\`\``
+    default:
+      return block.text
+  }
+}
+
+function blockPlaceholder(type: BlockType): string {
+  switch (type) {
+    case 'heading1':
+    case 'heading2':
+    case 'heading3':
+      return 'Heading'
+    case 'todo':
+      return 'To-do'
+    case 'quote':
+      return 'Quote'
+    case 'code':
+      return 'Write some code…'
+    default:
+      return "Type '/' for commands"
+  }
+}
+
 export default function App() {
   const [pages, setPages] = useState<Page[]>(loadPages)
   const [activeId, setActiveId] = useState(() => pages[0]?.id ?? '')
   const [query, setQuery] = useState('')
   const [theme, setTheme] = useState<Theme>(loadTheme)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [slashMenu, setSlashMenu] = useState<{ blockId: string; query: string } | null>(null)
+  const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null)
+  const blockRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
 
   const activePage = pages.find((page) => page.id === activeId) ?? pages[0]
 
@@ -68,18 +248,50 @@ export default function App() {
   const filteredPages = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return pages
-    return pages.filter((page) =>
-      `${page.title} ${page.content}`.toLowerCase().includes(needle),
-    )
+
+    return pages.filter((page) => {
+      const blockText = page.blocks.map((block) => block.text).join(' ')
+      return `${page.title} ${blockText}`.toLowerCase().includes(needle)
+    })
   }, [pages, query])
+
+  const visibleCommands = useMemo(() => {
+    if (!slashMenu) return SLASH_COMMANDS
+    const needle = slashMenu.query.trim().toLowerCase()
+    if (!needle) return SLASH_COMMANDS
+
+    return SLASH_COMMANDS.filter((command) =>
+      `${command.label} ${command.description} ${command.keywords}`
+        .toLowerCase()
+        .includes(needle),
+    )
+  }, [slashMenu])
+
+  function focusBlock(blockId: string) {
+    requestAnimationFrame(() => {
+      const element = blockRefs.current[blockId]
+      element?.focus()
+      if (element) {
+        const end = element.value.length
+        element.setSelectionRange(end, end)
+      }
+    })
+  }
+
+  function resizeTextarea(element: HTMLTextAreaElement | null) {
+    if (!element) return
+    element.style.height = '0px'
+    element.style.height = `${Math.max(element.scrollHeight, 28)}px`
+  }
 
   function addPage() {
     const page = makePage()
     setPages((current) => [page, ...current])
     setActiveId(page.id)
+    setSlashMenu(null)
   }
 
-  function updateActive(patch: Partial<Pick<Page, 'title' | 'content'>>) {
+  function updateActivePage(patch: Partial<Pick<Page, 'title' | 'blocks'>>) {
     if (!activePage) return
     setPages((current) =>
       current.map((page) =>
@@ -88,6 +300,134 @@ export default function App() {
           : page,
       ),
     )
+  }
+
+  function changeBlocks(mutator: (blocks: Block[]) => Block[]) {
+    if (!activePage) return
+    setPages((current) =>
+      current.map((page) =>
+        page.id === activePage.id
+          ? { ...page, blocks: mutator(page.blocks), updatedAt: Date.now() }
+          : page,
+      ),
+    )
+  }
+
+  function updateBlock(blockId: string, patch: Partial<Block>) {
+    changeBlocks((blocks) =>
+      blocks.map((block) => (block.id === blockId ? { ...block, ...patch } : block)),
+    )
+  }
+
+  function handleBlockChange(blockId: string, text: string) {
+    updateBlock(blockId, { text })
+
+    if (text.startsWith('/') && !text.includes('\n')) {
+      setSlashMenu({ blockId, query: text.slice(1) })
+    } else if (slashMenu?.blockId === blockId) {
+      setSlashMenu(null)
+    }
+  }
+
+  function insertBlockAfter(blockId: string, type: BlockType = 'text') {
+    const next = makeBlock(type)
+    changeBlocks((blocks) => {
+      const index = blocks.findIndex((block) => block.id === blockId)
+      if (index === -1) return [...blocks, next]
+      return [...blocks.slice(0, index + 1), next, ...blocks.slice(index + 1)]
+    })
+    focusBlock(next.id)
+  }
+
+  function deleteBlock(blockId: string, fallbackIndex: number) {
+    if (!activePage || activePage.blocks.length <= 1) return
+    const previous = activePage.blocks[Math.max(0, fallbackIndex - 1)]
+    changeBlocks((blocks) => blocks.filter((block) => block.id !== blockId))
+    setSlashMenu(null)
+    if (previous) focusBlock(previous.id)
+  }
+
+  function selectCommand(command: SlashCommand) {
+    if (!slashMenu) return
+    updateBlock(slashMenu.blockId, {
+      type: command.type,
+      text: '',
+      checked: command.type === 'todo' ? false : undefined,
+    })
+    const blockId = slashMenu.blockId
+    setSlashMenu(null)
+    focusBlock(blockId)
+  }
+
+  function handleBlockKeyDown(
+    event: KeyboardEvent<HTMLTextAreaElement>,
+    block: Block,
+    index: number,
+  ) {
+    if (slashMenu?.blockId === block.id) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setSlashMenu(null)
+        return
+      }
+
+      if (event.key === 'Enter' && !event.shiftKey && visibleCommands[0]) {
+        event.preventDefault()
+        selectCommand(visibleCommands[0])
+        return
+      }
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey && block.type !== 'code') {
+      event.preventDefault()
+
+      if (block.text.length === 0 && block.type !== 'text') {
+        updateBlock(block.id, { type: 'text', checked: undefined })
+        return
+      }
+
+      const continuation: BlockType =
+        block.type === 'bullet' || block.type === 'numbered' || block.type === 'todo'
+          ? block.type
+          : 'text'
+      insertBlockAfter(block.id, continuation)
+      return
+    }
+
+    if (event.key === 'Backspace' && block.text.length === 0) {
+      if (block.type !== 'text') {
+        event.preventDefault()
+        updateBlock(block.id, { type: 'text', checked: undefined })
+        return
+      }
+
+      if (activePage && activePage.blocks.length > 1) {
+        event.preventDefault()
+        deleteBlock(block.id, index)
+      }
+    }
+  }
+
+  function reorderBlocks(fromId: string, toId: string) {
+    if (fromId === toId) return
+
+    changeBlocks((blocks) => {
+      const fromIndex = blocks.findIndex((block) => block.id === fromId)
+      const toIndex = blocks.findIndex((block) => block.id === toId)
+      if (fromIndex === -1 || toIndex === -1) return blocks
+
+      const next = [...blocks]
+      const [moved] = next.splice(fromIndex, 1)
+      if (!moved) return blocks
+      next.splice(toIndex, 0, moved)
+      return next
+    })
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>, targetId: string) {
+    event.preventDefault()
+    if (draggedBlockId) reorderBlocks(draggedBlockId, targetId)
+    setDraggedBlockId(null)
   }
 
   function deleteActive() {
@@ -99,12 +439,14 @@ export default function App() {
       if (remaining.length > 0) return remaining
       return [makePage()]
     })
+    setSlashMenu(null)
   }
 
   function exportMarkdown() {
     if (!activePage) return
     const title = activePage.title.trim() || 'Untitled'
-    const markdown = `# ${title}\n\n${activePage.content}`
+    const body = activePage.blocks.map(blockToMarkdown).join('\n\n')
+    const markdown = `# ${title}\n\n${body}`
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -144,7 +486,10 @@ export default function App() {
             <button
               key={page.id}
               className={`page-item ${page.id === activePage?.id ? 'page-item--active' : ''}`}
-              onClick={() => setActiveId(page.id)}
+              onClick={() => {
+                setActiveId(page.id)
+                setSlashMenu(null)
+              }}
             >
               <span className="page-icon">▤</span>
               <span className="page-label">{page.title.trim() || 'Untitled'}</span>
@@ -180,7 +525,7 @@ export default function App() {
         </header>
 
         {activePage && (
-          <section className="editor-wrap">
+          <section className="editor-wrap" onClick={() => setSlashMenu(null)}>
             <div className="editor-meta">
               <span>Saved locally</span>
               <span>•</span>
@@ -190,18 +535,103 @@ export default function App() {
             <input
               className="title-input"
               value={activePage.title}
-              onChange={(event) => updateActive({ title: event.target.value })}
+              onChange={(event) => updateActivePage({ title: event.target.value })}
               placeholder="Untitled"
               aria-label="Page title"
             />
 
-            <textarea
-              className="page-editor"
-              value={activePage.content}
-              onChange={(event) => updateActive({ content: event.target.value })}
-              placeholder="Start writing…"
-              spellCheck
-            />
+            <div className="block-editor" onClick={(event) => event.stopPropagation()}>
+              {activePage.blocks.map((block, index) => (
+                <div
+                  key={block.id}
+                  className={`block-row block-row--${block.type}`}
+                  draggable
+                  onDragStart={() => setDraggedBlockId(block.id)}
+                  onDragEnd={() => setDraggedBlockId(null)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => handleDrop(event, block.id)}
+                >
+                  <div className="block-gutter" aria-hidden="true">
+                    <button
+                      className="block-add"
+                      onClick={() => insertBlockAfter(block.id)}
+                      tabIndex={-1}
+                      title="Add block"
+                    >
+                      +
+                    </button>
+                    <span className="drag-handle" title="Drag to move">⋮⋮</span>
+                  </div>
+
+                  <div className="block-main">
+                    {block.type === 'bullet' && <span className="block-prefix">•</span>}
+                    {block.type === 'numbered' && <span className="block-prefix">{index + 1}.</span>}
+                    {block.type === 'todo' && (
+                      <input
+                        className="todo-checkbox"
+                        type="checkbox"
+                        checked={Boolean(block.checked)}
+                        onChange={(event) => updateBlock(block.id, { checked: event.target.checked })}
+                        aria-label="Toggle to-do"
+                      />
+                    )}
+
+                    <textarea
+                      ref={(element) => {
+                        blockRefs.current[block.id] = element
+                        resizeTextarea(element)
+                      }}
+                      className={`block-input block-input--${block.type} ${block.checked ? 'block-input--checked' : ''}`}
+                      value={block.text}
+                      rows={1}
+                      onChange={(event) => {
+                        handleBlockChange(block.id, event.target.value)
+                        resizeTextarea(event.currentTarget)
+                      }}
+                      onKeyDown={(event) => handleBlockKeyDown(event, block, index)}
+                      onFocus={() => {
+                        if (block.text.startsWith('/')) {
+                          setSlashMenu({ blockId: block.id, query: block.text.slice(1) })
+                        }
+                      }}
+                      placeholder={blockPlaceholder(block.type)}
+                      spellCheck={block.type !== 'code'}
+                    />
+
+                    {slashMenu?.blockId === block.id && (
+                      <div className="slash-menu">
+                        <div className="slash-menu-title">Turn into</div>
+                        {visibleCommands.length > 0 ? (
+                          visibleCommands.map((command) => (
+                            <button
+                              key={command.type}
+                              className="slash-command"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => selectCommand(command)}
+                            >
+                              <span className="slash-command-icon">{command.icon}</span>
+                              <span>
+                                <strong>{command.label}</strong>
+                                <small>{command.description}</small>
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="slash-empty">No matching blocks.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="editor-add-block"
+              onClick={() => insertBlockAfter(activePage.blocks.at(-1)?.id ?? '')}
+            >
+              + Add block
+            </button>
           </section>
         )}
       </main>
