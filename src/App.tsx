@@ -30,6 +30,8 @@ type Page = {
   title: string
   blocks: Block[]
   content?: string
+  icon: string
+  parentId: string | null
   createdAt: number
   updatedAt: number
 }
@@ -48,69 +50,15 @@ const STORAGE_KEY = 'lumo.pages.v1'
 const THEME_KEY = 'lumo.theme'
 
 const SLASH_COMMANDS: SlashCommand[] = [
-  {
-    type: 'text',
-    label: 'Text',
-    description: 'Plain text block',
-    icon: 'T',
-    keywords: 'paragraph normal text',
-  },
-  {
-    type: 'heading1',
-    label: 'Heading 1',
-    description: 'Large section heading',
-    icon: 'H1',
-    keywords: 'title heading h1',
-  },
-  {
-    type: 'heading2',
-    label: 'Heading 2',
-    description: 'Medium section heading',
-    icon: 'H2',
-    keywords: 'subtitle heading h2',
-  },
-  {
-    type: 'heading3',
-    label: 'Heading 3',
-    description: 'Small section heading',
-    icon: 'H3',
-    keywords: 'heading h3',
-  },
-  {
-    type: 'bullet',
-    label: 'Bulleted list',
-    description: 'Create a simple list',
-    icon: '•',
-    keywords: 'bullet unordered list',
-  },
-  {
-    type: 'numbered',
-    label: 'Numbered list',
-    description: 'Create a numbered list',
-    icon: '1.',
-    keywords: 'ordered numbered list',
-  },
-  {
-    type: 'todo',
-    label: 'To-do',
-    description: 'Track a task with a checkbox',
-    icon: '☑',
-    keywords: 'todo task checkbox checklist',
-  },
-  {
-    type: 'quote',
-    label: 'Quote',
-    description: 'Capture a quote or callout',
-    icon: '❝',
-    keywords: 'quote blockquote',
-  },
-  {
-    type: 'code',
-    label: 'Code',
-    description: 'Monospace code block',
-    icon: '</>',
-    keywords: 'code snippet programming',
-  },
+  { type: 'text', label: 'Text', description: 'Plain text block', icon: 'T', keywords: 'paragraph normal text' },
+  { type: 'heading1', label: 'Heading 1', description: 'Large section heading', icon: 'H1', keywords: 'title heading h1' },
+  { type: 'heading2', label: 'Heading 2', description: 'Medium section heading', icon: 'H2', keywords: 'subtitle heading h2' },
+  { type: 'heading3', label: 'Heading 3', description: 'Small section heading', icon: 'H3', keywords: 'heading h3' },
+  { type: 'bullet', label: 'Bulleted list', description: 'Create a simple list', icon: '•', keywords: 'bullet unordered list' },
+  { type: 'numbered', label: 'Numbered list', description: 'Create a numbered list', icon: '1.', keywords: 'ordered numbered list' },
+  { type: 'todo', label: 'To-do', description: 'Track a task with a checkbox', icon: '☑', keywords: 'todo task checkbox checklist' },
+  { type: 'quote', label: 'Quote', description: 'Capture a quote or callout', icon: '❝', keywords: 'quote blockquote' },
+  { type: 'code', label: 'Code', description: 'Monospace code block', icon: '</>', keywords: 'code snippet programming' },
 ]
 
 function makeBlock(type: BlockType = 'text', text = ''): Block {
@@ -122,12 +70,14 @@ function makeBlock(type: BlockType = 'text', text = ''): Block {
   }
 }
 
-function makePage(title = 'Untitled'): Page {
+function makePage(title = 'Untitled', parentId: string | null = null): Page {
   const now = Date.now()
   return {
     id: crypto.randomUUID(),
     title,
     blocks: [makeBlock()],
+    icon: '📄',
+    parentId,
     createdAt: now,
     updatedAt: now,
   }
@@ -164,6 +114,8 @@ function loadPages(): Page[] {
       id: page.id || crypto.randomUUID(),
       title: page.title || 'Untitled',
       blocks: migrateBlocks(page),
+      icon: page.icon || '📄',
+      parentId: page.parentId ?? null,
       createdAt: page.createdAt || Date.now(),
       updatedAt: page.updatedAt || Date.now(),
     }))
@@ -180,24 +132,15 @@ function loadTheme(): Theme {
 
 function blockToMarkdown(block: Block): string {
   switch (block.type) {
-    case 'heading1':
-      return `# ${block.text}`
-    case 'heading2':
-      return `## ${block.text}`
-    case 'heading3':
-      return `### ${block.text}`
-    case 'bullet':
-      return `- ${block.text}`
-    case 'numbered':
-      return `1. ${block.text}`
-    case 'todo':
-      return `- [${block.checked ? 'x' : ' '}] ${block.text}`
-    case 'quote':
-      return `> ${block.text}`
-    case 'code':
-      return `\`\`\`\n${block.text}\n\`\`\``
-    default:
-      return block.text
+    case 'heading1': return `# ${block.text}`
+    case 'heading2': return `## ${block.text}`
+    case 'heading3': return `### ${block.text}`
+    case 'bullet': return `- ${block.text}`
+    case 'numbered': return `1. ${block.text}`
+    case 'todo': return `- [${block.checked ? 'x' : ' '}] ${block.text}`
+    case 'quote': return `> ${block.text}`
+    case 'code': return `\`\`\`\n${block.text}\n\`\`\``
+    default: return block.text
   }
 }
 
@@ -207,14 +150,10 @@ function blockPlaceholder(type: BlockType): string {
     case 'heading2':
     case 'heading3':
       return 'Heading'
-    case 'todo':
-      return 'To-do'
-    case 'quote':
-      return 'Quote'
-    case 'code':
-      return 'Write some code…'
-    default:
-      return "Type '/' for commands"
+    case 'todo': return 'To-do'
+    case 'quote': return 'Quote'
+    case 'code': return 'Write some code…'
+    default: return "Type '/' for commands"
   }
 }
 
@@ -226,7 +165,11 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [slashMenu, setSlashMenu] = useState<{ blockId: string; query: string } | null>(null)
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null)
+  const [collapsedPages, setCollapsedPages] = useState<Set<string>>(new Set())
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [paletteQuery, setPaletteQuery] = useState('')
   const blockRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
+  const paletteInputRef = useRef<HTMLInputElement | null>(null)
 
   const activePage = pages.find((page) => page.id === activeId) ?? pages[0]
 
@@ -245,10 +188,32 @@ export default function App() {
     }
   }, [pages, activeId])
 
+  useEffect(() => {
+    const handler = (event: globalThis.KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen((open) => !open)
+        setPaletteQuery('')
+      }
+      if (event.key === 'Escape') {
+        setPaletteOpen(false)
+        setSlashMenu(null)
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  useEffect(() => {
+    if (paletteOpen) {
+      requestAnimationFrame(() => paletteInputRef.current?.focus())
+    }
+  }, [paletteOpen])
+
   const filteredPages = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return pages
-
     return pages.filter((page) => {
       const blockText = page.blocks.map((block) => block.text).join(' ')
       return `${page.title} ${blockText}`.toLowerCase().includes(needle)
@@ -259,13 +224,18 @@ export default function App() {
     if (!slashMenu) return SLASH_COMMANDS
     const needle = slashMenu.query.trim().toLowerCase()
     if (!needle) return SLASH_COMMANDS
-
     return SLASH_COMMANDS.filter((command) =>
-      `${command.label} ${command.description} ${command.keywords}`
-        .toLowerCase()
-        .includes(needle),
+      `${command.label} ${command.description} ${command.keywords}`.toLowerCase().includes(needle),
     )
   }, [slashMenu])
+
+  const palettePages = useMemo(() => {
+    const needle = paletteQuery.trim().toLowerCase()
+    const matches = needle
+      ? pages.filter((page) => page.title.toLowerCase().includes(needle))
+      : pages
+    return matches.slice(0, 7)
+  }, [pages, paletteQuery])
 
   function focusBlock(blockId: string) {
     requestAnimationFrame(() => {
@@ -284,20 +254,26 @@ export default function App() {
     element.style.height = `${Math.max(element.scrollHeight, 28)}px`
   }
 
-  function addPage() {
-    const page = makePage()
+  function addPage(parentId: string | null = null) {
+    const page = makePage('Untitled', parentId)
     setPages((current) => [page, ...current])
     setActiveId(page.id)
     setSlashMenu(null)
+    setPaletteOpen(false)
+    if (parentId) {
+      setCollapsedPages((current) => {
+        const next = new Set(current)
+        next.delete(parentId)
+        return next
+      })
+    }
   }
 
-  function updateActivePage(patch: Partial<Pick<Page, 'title' | 'blocks'>>) {
+  function updateActivePage(patch: Partial<Pick<Page, 'title' | 'blocks' | 'icon' | 'parentId'>>) {
     if (!activePage) return
     setPages((current) =>
       current.map((page) =>
-        page.id === activePage.id
-          ? { ...page, ...patch, updatedAt: Date.now() }
-          : page,
+        page.id === activePage.id ? { ...page, ...patch, updatedAt: Date.now() } : page,
       ),
     )
   }
@@ -321,7 +297,6 @@ export default function App() {
 
   function handleBlockChange(blockId: string, text: string) {
     updateBlock(blockId, { text })
-
     if (text.startsWith('/') && !text.includes('\n')) {
       setSlashMenu({ blockId, query: text.slice(1) })
     } else if (slashMenu?.blockId === blockId) {
@@ -370,7 +345,6 @@ export default function App() {
         setSlashMenu(null)
         return
       }
-
       if (event.key === 'Enter' && !event.shiftKey && visibleCommands[0]) {
         event.preventDefault()
         selectCommand(visibleCommands[0])
@@ -380,7 +354,6 @@ export default function App() {
 
     if (event.key === 'Enter' && !event.shiftKey && block.type !== 'code') {
       event.preventDefault()
-
       if (block.text.length === 0 && block.type !== 'text') {
         updateBlock(block.id, { type: 'text', checked: undefined })
         return
@@ -400,7 +373,6 @@ export default function App() {
         updateBlock(block.id, { type: 'text', checked: undefined })
         return
       }
-
       if (activePage && activePage.blocks.length > 1) {
         event.preventDefault()
         deleteBlock(block.id, index)
@@ -410,12 +382,10 @@ export default function App() {
 
   function reorderBlocks(fromId: string, toId: string) {
     if (fromId === toId) return
-
     changeBlocks((blocks) => {
       const fromIndex = blocks.findIndex((block) => block.id === fromId)
       const toIndex = blocks.findIndex((block) => block.id === toId)
       if (fromIndex === -1 || toIndex === -1) return blocks
-
       const next = [...blocks]
       const [moved] = next.splice(fromIndex, 1)
       if (!moved) return blocks
@@ -430,14 +400,32 @@ export default function App() {
     setDraggedBlockId(null)
   }
 
+  function collectDescendants(rootId: string, source: Page[]) {
+    const ids = new Set<string>([rootId])
+    let changed = true
+    while (changed) {
+      changed = false
+      source.forEach((page) => {
+        if (page.parentId && ids.has(page.parentId) && !ids.has(page.id)) {
+          ids.add(page.id)
+          changed = true
+        }
+      })
+    }
+    return ids
+  }
+
   function deleteActive() {
     if (!activePage) return
-    if (!window.confirm(`Delete “${activePage.title || 'Untitled'}”?`)) return
+    const descendants = collectDescendants(activePage.id, pages)
+    const childCount = descendants.size - 1
+    const suffix = childCount > 0 ? ` This also deletes ${childCount} subpage${childCount === 1 ? '' : 's'}.` : ''
+    if (!window.confirm(`Delete “${activePage.title || 'Untitled'}”?${suffix}`)) return
 
     setPages((current) => {
-      const remaining = current.filter((page) => page.id !== activePage.id)
-      if (remaining.length > 0) return remaining
-      return [makePage()]
+      const deleting = collectDescendants(activePage.id, current)
+      const remaining = current.filter((page) => !deleting.has(page.id))
+      return remaining.length > 0 ? remaining : [makePage()]
     })
     setSlashMenu(null)
   }
@@ -456,6 +444,68 @@ export default function App() {
     URL.revokeObjectURL(url)
   }
 
+  function changePageIcon() {
+    if (!activePage) return
+    const next = window.prompt('Choose an emoji or short icon', activePage.icon || '📄')
+    if (next === null) return
+    updateActivePage({ icon: next.trim().slice(0, 4) || '📄' })
+  }
+
+  function togglePageCollapsed(pageId: string) {
+    setCollapsedPages((current) => {
+      const next = new Set(current)
+      if (next.has(pageId)) next.delete(pageId)
+      else next.add(pageId)
+      return next
+    })
+  }
+
+  function openPage(pageId: string) {
+    setActiveId(pageId)
+    setSlashMenu(null)
+    setPaletteOpen(false)
+  }
+
+  function renderPageTree(parentId: string | null, depth = 0) {
+    const children = pages.filter((page) => page.parentId === parentId)
+    return children.map((page) => {
+      const hasChildren = pages.some((candidate) => candidate.parentId === page.id)
+      const collapsed = collapsedPages.has(page.id)
+      return (
+        <div key={page.id} className="page-tree-node">
+          <div className={`page-row ${page.id === activePage?.id ? 'page-row--active' : ''}`} style={{ paddingLeft: `${4 + depth * 14}px` }}>
+            <button
+              className={`page-toggle ${hasChildren ? '' : 'page-toggle--empty'}`}
+              onClick={() => hasChildren && togglePageCollapsed(page.id)}
+              aria-label={collapsed ? 'Expand subpages' : 'Collapse subpages'}
+              tabIndex={hasChildren ? 0 : -1}
+            >
+              {hasChildren ? (collapsed ? '›' : '⌄') : '·'}
+            </button>
+            <button className="page-item" onClick={() => openPage(page.id)}>
+              <span className="page-icon">{page.icon || '📄'}</span>
+              <span className="page-label">{page.title.trim() || 'Untitled'}</span>
+            </button>
+            <button
+              className="page-child-add"
+              onClick={() => addPage(page.id)}
+              title="Add subpage"
+              aria-label={`Add subpage to ${page.title || 'Untitled'}`}
+            >
+              +
+            </button>
+          </div>
+          {hasChildren && !collapsed && renderPageTree(page.id, depth + 1)}
+        </div>
+      )
+    })
+  }
+
+  const paletteNeedle = paletteQuery.trim().toLowerCase()
+  const showNewPageCommand = !paletteNeedle || 'new page create'.includes(paletteNeedle)
+  const showThemeCommand = !paletteNeedle || 'theme dark light appearance'.includes(paletteNeedle)
+  const showExportCommand = !paletteNeedle || 'export markdown md'.includes(paletteNeedle)
+
   return (
     <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? '' : 'sidebar--closed'}`}>
@@ -467,7 +517,7 @@ export default function App() {
           </div>
         </div>
 
-        <button className="new-page" onClick={addPage}>
+        <button className="new-page" onClick={() => addPage(null)}>
           <span>＋</span> New page
         </button>
 
@@ -482,25 +532,26 @@ export default function App() {
         </label>
 
         <nav className="page-list" aria-label="Pages">
-          {filteredPages.map((page) => (
-            <button
-              key={page.id}
-              className={`page-item ${page.id === activePage?.id ? 'page-item--active' : ''}`}
-              onClick={() => {
-                setActiveId(page.id)
-                setSlashMenu(null)
-              }}
-            >
-              <span className="page-icon">▤</span>
-              <span className="page-label">{page.title.trim() || 'Untitled'}</span>
-            </button>
-          ))}
-          {filteredPages.length === 0 && (
-            <div className="empty-search">No pages found.</div>
+          {query.trim() ? (
+            filteredPages.length > 0 ? (
+              filteredPages.map((page) => (
+                <button key={page.id} className={`page-item page-item--search ${page.id === activePage?.id ? 'page-item--active' : ''}`} onClick={() => openPage(page.id)}>
+                  <span className="page-icon">{page.icon || '📄'}</span>
+                  <span className="page-label">{page.title.trim() || 'Untitled'}</span>
+                </button>
+              ))
+            ) : (
+              <div className="empty-search">No pages found.</div>
+            )
+          ) : (
+            renderPageTree(null)
           )}
         </nav>
 
         <div className="sidebar-footer">
+          <button className="palette-shortcut" onClick={() => setPaletteOpen(true)}>
+            <span>Command palette</span><kbd>Ctrl K</kbd>
+          </button>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀ Light mode' : '☾ Dark mode'}
           </button>
@@ -509,16 +560,10 @@ export default function App() {
 
       <main className="workspace">
         <header className="topbar">
-          <button
-            className="icon-button"
-            onClick={() => setSidebarOpen((open) => !open)}
-            aria-label="Toggle sidebar"
-            title="Toggle sidebar"
-          >
-            ☰
-          </button>
-          <div className="topbar-title">{activePage?.title.trim() || 'Untitled'}</div>
+          <button className="icon-button" onClick={() => setSidebarOpen((open) => !open)} aria-label="Toggle sidebar" title="Toggle sidebar">☰</button>
+          <div className="topbar-title">{activePage?.icon} {activePage?.title.trim() || 'Untitled'}</div>
           <div className="topbar-actions">
+            <button className="command-button" onClick={() => setPaletteOpen(true)}><span>⌕</span><kbd>Ctrl K</kbd></button>
             <button onClick={exportMarkdown}>Export .md</button>
             <button className="danger-button" onClick={deleteActive}>Delete</button>
           </div>
@@ -527,10 +572,10 @@ export default function App() {
         {activePage && (
           <section className="editor-wrap" onClick={() => setSlashMenu(null)}>
             <div className="editor-meta">
-              <span>Saved locally</span>
-              <span>•</span>
-              <span>{new Date(activePage.updatedAt).toLocaleString()}</span>
+              <span>Saved locally</span><span>•</span><span>{new Date(activePage.updatedAt).toLocaleString()}</span>
             </div>
+
+            <button className="page-hero-icon" onClick={changePageIcon} title="Change page icon">{activePage.icon || '📄'}</button>
 
             <input
               className="title-input"
@@ -544,7 +589,7 @@ export default function App() {
               {activePage.blocks.map((block, index) => (
                 <div
                   key={block.id}
-                  className={`block-row block-row--${block.type}`}
+                  className={`block-row block-row--${block.type} ${draggedBlockId === block.id ? 'block-row--dragging' : ''}`}
                   draggable
                   onDragStart={() => setDraggedBlockId(block.id)}
                   onDragEnd={() => setDraggedBlockId(null)}
@@ -552,14 +597,7 @@ export default function App() {
                   onDrop={(event) => handleDrop(event, block.id)}
                 >
                   <div className="block-gutter" aria-hidden="true">
-                    <button
-                      className="block-add"
-                      onClick={() => insertBlockAfter(block.id)}
-                      tabIndex={-1}
-                      title="Add block"
-                    >
-                      +
-                    </button>
+                    <button className="block-add" onClick={() => insertBlockAfter(block.id)} tabIndex={-1} title="Add block">+</button>
                     <span className="drag-handle" title="Drag to move">⋮⋮</span>
                   </div>
 
@@ -590,9 +628,7 @@ export default function App() {
                       }}
                       onKeyDown={(event) => handleBlockKeyDown(event, block, index)}
                       onFocus={() => {
-                        if (block.text.startsWith('/')) {
-                          setSlashMenu({ blockId: block.id, query: block.text.slice(1) })
-                        }
+                        if (block.text.startsWith('/')) setSlashMenu({ blockId: block.id, query: block.text.slice(1) })
                       }}
                       placeholder={blockPlaceholder(block.type)}
                       spellCheck={block.type !== 'code'}
@@ -600,7 +636,7 @@ export default function App() {
 
                     {slashMenu?.blockId === block.id && (
                       <div className="slash-menu">
-                        <div className="slash-menu-title">Turn into</div>
+                        <div className="slash-menu-title">Blocks</div>
                         {visibleCommands.length > 0 ? (
                           visibleCommands.map((command) => (
                             <button
@@ -610,15 +646,13 @@ export default function App() {
                               onClick={() => selectCommand(command)}
                             >
                               <span className="slash-command-icon">{command.icon}</span>
-                              <span>
-                                <strong>{command.label}</strong>
-                                <small>{command.description}</small>
-                              </span>
+                              <span><strong>{command.label}</strong><small>{command.description}</small></span>
                             </button>
                           ))
                         ) : (
                           <div className="slash-empty">No matching blocks.</div>
                         )}
+                        <div className="slash-menu-hint">Enter to select · Esc to close</div>
                       </div>
                     )}
                   </div>
@@ -626,15 +660,46 @@ export default function App() {
               ))}
             </div>
 
-            <button
-              className="editor-add-block"
-              onClick={() => insertBlockAfter(activePage.blocks.at(-1)?.id ?? '')}
-            >
-              + Add block
-            </button>
+            <button className="editor-add-block" onClick={() => insertBlockAfter(activePage.blocks.at(-1)?.id ?? '')}>+ Add block</button>
           </section>
         )}
       </main>
+
+      {paletteOpen && (
+        <div className="palette-backdrop" onMouseDown={() => setPaletteOpen(false)}>
+          <div className="command-palette" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="palette-search-row">
+              <span>⌕</span>
+              <input
+                ref={paletteInputRef}
+                value={paletteQuery}
+                onChange={(event) => setPaletteQuery(event.target.value)}
+                placeholder="Search pages or run a command…"
+              />
+              <kbd>Esc</kbd>
+            </div>
+
+            <div className="palette-results">
+              {(showNewPageCommand || showThemeCommand || showExportCommand) && <div className="palette-section-title">Commands</div>}
+              {showNewPageCommand && <button onClick={() => addPage(null)}><span className="palette-icon">＋</span><span><strong>New page</strong><small>Create a top-level page</small></span></button>}
+              {showThemeCommand && <button onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setPaletteOpen(false) }}><span className="palette-icon">◐</span><span><strong>Toggle theme</strong><small>Switch light and dark mode</small></span></button>}
+              {showExportCommand && <button onClick={() => { exportMarkdown(); setPaletteOpen(false) }}><span className="palette-icon">⇩</span><span><strong>Export Markdown</strong><small>Download the current page</small></span></button>}
+
+              {palettePages.length > 0 && <div className="palette-section-title">Pages</div>}
+              {palettePages.map((page) => (
+                <button key={page.id} onClick={() => openPage(page.id)}>
+                  <span className="palette-icon">{page.icon || '📄'}</span>
+                  <span><strong>{page.title.trim() || 'Untitled'}</strong><small>Open page</small></span>
+                </button>
+              ))}
+
+              {!showNewPageCommand && !showThemeCommand && !showExportCommand && palettePages.length === 0 && (
+                <div className="palette-empty">Nothing found.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
