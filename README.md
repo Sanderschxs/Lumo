@@ -18,6 +18,12 @@ The goal is simple: make a fast, clean workspace that feels great to use without
 - `Ctrl+K` command palette
 - Light and dark themes
 - Markdown export
+- Database blocks
+- Editable database properties: name, status, tags and date
+- Table view
+- Kanban-style board view
+- Calendar view
+- Database data included in local autosave, search and Markdown export
 
 ## Tech
 
@@ -33,6 +39,14 @@ npm run dev
 ```
 
 Then open the local address shown by Vite, usually `http://localhost:5173`.
+
+## Updating an existing clone
+
+```bash
+git pull
+npm install
+npm run dev
+```
 
 ## Status
 
