@@ -1,0 +1,403 @@
+.database-block {
+  width: 100%;
+  margin: 10px 0 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--workspace-bg) 94%, var(--sidebar-bg));
+  overflow: hidden;
+}
+
+.database-header,
+.database-toolbar,
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+}
+
+.database-header {
+  gap: 10px;
+  padding: 14px 14px 8px;
+}
+
+.database-title {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.database-add-row,
+.database-tab,
+.database-table-new,
+.database-board-new,
+.calendar-toolbar button,
+.database-delete-row,
+.database-card-footer button,
+.calendar-day-number button {
+  border: 0;
+  border-radius: 7px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.database-add-row {
+  padding: 7px 10px;
+  background: var(--accent);
+  color: #2c210d;
+  font-weight: 700;
+}
+
+.database-toolbar {
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px 10px 14px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.database-view-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.database-tab {
+  padding: 6px 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.database-tab:hover,
+.database-tab--active,
+.database-table-new:hover,
+.database-board-new:hover,
+.calendar-toolbar button:hover,
+.database-delete-row:hover,
+.database-card-footer button:hover,
+.calendar-day-number button:hover {
+  background: var(--hover);
+  color: inherit;
+}
+
+.database-tab--active {
+  font-weight: 700;
+}
+
+.database-count {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.database-table-wrap {
+  overflow-x: auto;
+}
+
+.database-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.database-table th,
+.database-table td {
+  border-right: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  padding: 0;
+  text-align: left;
+}
+
+.database-table th:last-child,
+.database-table td:last-child {
+  border-right: 0;
+}
+
+.database-table th {
+  padding: 8px 10px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--sidebar-bg) 60%, transparent);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.database-table td > input:not([type='date']),
+.database-table td select,
+.database-table td input[type='date'] {
+  width: 100%;
+  min-width: 120px;
+  padding: 9px 10px;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.database-table td select,
+.database-card-footer select,
+.database-card-footer input[type='date'] {
+  color-scheme: light dark;
+}
+
+.database-table tbody tr:hover {
+  background: color-mix(in srgb, var(--hover) 55%, transparent);
+}
+
+.database-delete-row {
+  width: 34px;
+  height: 34px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.database-table-new {
+  margin: 8px;
+  padding: 7px 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.database-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.database-board-column {
+  min-width: 220px;
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--sidebar-bg) 55%, transparent);
+}
+
+.database-board-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.database-board-heading > span:last-child {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #8a8a8a;
+}
+
+.status-dot--in-progress { background: #e9a72f; }
+.status-dot--done { background: #54a56a; }
+
+.database-cards {
+  display: grid;
+  gap: 8px;
+}
+
+.database-card {
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  background: var(--workspace-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.database-card-title {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: inherit;
+  background: transparent;
+  font-weight: 650;
+}
+
+.database-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.database-tags span {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.database-card-footer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.database-card-footer select,
+.database-card-footer input[type='date'] {
+  width: 100%;
+  padding: 6px 7px;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  color: inherit;
+  background: var(--input-bg);
+  font-size: 11px;
+}
+
+.database-card-footer button {
+  justify-self: end;
+  padding: 3px 7px;
+  color: var(--muted);
+}
+
+.database-board-new {
+  padding: 7px 8px;
+  color: var(--muted);
+  text-align: left;
+  font-size: 12px;
+}
+
+.database-calendar {
+  padding: 12px;
+}
+
+.calendar-toolbar {
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.calendar-toolbar strong {
+  min-width: 150px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.calendar-toolbar button {
+  padding: 5px 8px;
+}
+
+.calendar-toolbar .calendar-today {
+  margin-left: auto;
+  border: 1px solid var(--panel-border);
+  font-size: 11px;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(95px, 1fr));
+}
+
+.calendar-weekdays {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.calendar-weekdays span {
+  padding: 6px;
+}
+
+.calendar-grid {
+  border-top: 1px solid var(--panel-border);
+  border-left: 1px solid var(--panel-border);
+  overflow-x: auto;
+}
+
+.calendar-day {
+  min-height: 105px;
+  padding: 6px;
+  border-right: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--workspace-bg);
+}
+
+.calendar-day--muted {
+  opacity: 0.45;
+}
+
+.calendar-day--today {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.calendar-day-number {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.calendar-day-number button {
+  opacity: 0;
+}
+
+.calendar-day:hover .calendar-day-number button {
+  opacity: 1;
+}
+
+.calendar-items {
+  display: grid;
+  gap: 3px;
+  margin-top: 5px;
+}
+
+.calendar-item {
+  overflow: hidden;
+  width: 100%;
+  padding: 4px 5px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--hover);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.calendar-item--in-progress {
+  background: color-mix(in srgb, #e9a72f 20%, var(--workspace-bg));
+}
+
+.calendar-item--done {
+  background: color-mix(in srgb, #54a56a 20%, var(--workspace-bg));
+}
+
+.calendar-more {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.block-row--database {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.block-row--database .block-main {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .database-board {
+    grid-template-columns: repeat(3, 240px);
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    min-width: 700px;
+  }
+
+  .database-calendar {
+    overflow-x: auto;
+  }
+}
