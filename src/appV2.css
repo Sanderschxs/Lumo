@@ -1,0 +1,214 @@
+.block-input--heading4 {
+  font-size: 16px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.simple-table {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  overflow-x: auto;
+  border-top: 1px solid var(--panel-border);
+  border-left: 1px solid var(--panel-border);
+  border-radius: 8px;
+}
+
+.simple-table input {
+  min-width: 120px;
+  padding: 8px 10px;
+  border: 0;
+  border-right: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+
+.simple-table input:nth-child(-n + 3) {
+  background: color-mix(in srgb, var(--sidebar-bg) 58%, transparent);
+  font-weight: 650;
+}
+
+.toc-block {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+}
+
+.toc-block strong {
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.toc-block button {
+  width: fit-content;
+  padding: 3px 5px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+}
+
+.toc-block button:hover {
+  background: var(--hover);
+  color: inherit;
+}
+
+.toc-block > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.breadcrumb-block {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.breadcrumb-block span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumb-block button {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.breadcrumb-block button:hover { background: var(--hover); }
+.breadcrumb-block b { font-weight: 400; opacity: 0.6; }
+
+.columns-block {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+}
+
+.columns-block--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.columns-block--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.columns-block--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.columns-block--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+.columns-block textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px;
+  resize: vertical;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  outline: 0;
+  background: color-mix(in srgb, var(--sidebar-bg) 35%, transparent);
+  color: inherit;
+  line-height: 1.5;
+}
+
+.equation-block {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.equation-block > div:last-child {
+  min-height: 56px;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--sidebar-bg) 34%, transparent);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-style: italic;
+}
+
+.lumo-button-block {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.lumo-button-block > div {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 6px;
+}
+
+.lumo-button-block > div > input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  outline: 0;
+  background: var(--input-bg);
+  color: inherit;
+  font-size: 11px;
+}
+
+.lumo-button-block > button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #2c210d;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.lumo-button-block > button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.media-frame,
+.embed-frame {
+  width: min(100%, 760px);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #000;
+}
+
+.media-frame { aspect-ratio: 16 / 9; }
+.embed-frame { min-height: 360px; background: var(--sidebar-bg); }
+.audio-player { width: min(100%, 620px); }
+
+.block-row--toc,
+.block-row--breadcrumb,
+.block-row--table,
+.block-row--columns {
+  margin-top: 7px;
+  margin-bottom: 7px;
+}
+
+.block-row--heading4 .block-main { padding-top: 2px; }
+
+@media (max-width: 900px) {
+  .columns-block--4,
+  .columns-block--5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 650px) {
+  .columns-block,
+  .columns-block--2,
+  .columns-block--3,
+  .columns-block--4,
+  .columns-block--5 { grid-template-columns: 1fr; }
+  .lumo-button-block { align-items: stretch; flex-direction: column; }
+}
